@@ -1,0 +1,59 @@
+<html>
+	<head>
+		<script src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+	</head>
+	<body>
+		<script>
+
+var bj=null;
+$(document).ready(function(){
+	   var loader = {
+            stack: [],
+            maxThreads: 6,
+            currentThreads: 0,
+
+            getData: function (o, done, fail) {
+                this.stack.push({ o: o, done: done, fail: fail });
+                this.loop();
+            },
+
+            loop: function () {
+                if (this.currentThreads < this.maxThreads) {
+                    var req = this.stack.pop();
+                    if (req != null) {
+                        //var _this = this;
+                        this.currentThreads++;
+                        var a = $.ajax(req.o);
+                        if (req.done != null) {
+                            a.done(req.done);
+                        }
+                        if (req.fail != null) {
+                            a.fail(req.fail);
+                        }
+                        a.complete((function (context) {
+                            return function () {
+                                context.currentThreads--;
+                                context.loop();
+                            }
+                        })(this));
+                    }
+                }
+            }
+        };
+		for(d=20151030;d>20151001;d--) {
+			loader.getData(
+				"http://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?lang=ru&region=us&calendartype=whitelist&limit=1000&dates="+d,
+				function(page) {
+					$("#result").append(page.events[0].date+": "+page.events.length+"\n");
+				},
+				function() {
+					
+				}
+			);
+		};
+});
+</script>
+<div id="result">
+</div>
+</body>
+</html>
