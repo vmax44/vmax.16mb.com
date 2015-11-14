@@ -38,18 +38,26 @@ class freshdesk {
 		}
 	}
 	
-	public function getTicketsCount() {
+	public function getTicketsCount($vnumbers) {
 		if(!$this->isAutorized()) {
 			throw new Exception("Not autorized!");
 		}
+		$result=[];
+		foreach($vnumbers as $vnumber=>$field) {
+			$result[$field]=$this->getTicketsCountForOneView($vnumber);
+		}
+		return $result;
+	}
+	
+	private function getTicketsCountForOneView($viewnumber) {
 		$tickets_count=0;
 		//Getting tickets count
-		$content=$this->http->request($this->baseUrl."/helpdesk/tickets/view/".$this->loginData['viewnumber']);
+		$content=$this->http->request($this->baseUrl."/helpdesk/tickets/view/".$viewnumber);
 		$content=$this->http->request($this->baseUrl."/helpdesk/tickets/full_paginate?tickets_in_current_page=1");
 		if(preg_match("/html\(([0-9]+)\)/",$content,$matches)) {
 			$tickets_count=$matches[1];
 		} else {
-			throw new Exception("Tickets count not found!");
+			//throw new Exception("Tickets count not found for View $viewnumber!");
 		}
 		//getting tickets count done!
 		return $tickets_count;
@@ -74,8 +82,9 @@ class freshdesk {
 		foreach($rows as $row) {
 			$cols=$row->find("td");
 			$group=trim($cols[0]->innertext);
-			if(($group!="") && in_array($group,$groups)) {
-				$result[$group]=trim($cols[1]->innertext);
+			if(($group!="") && array_key_exists($group,$groups)) {
+				$fieldInDb=$groups[$group];
+				$result[$fieldInDb]=trim($cols[1]->innertext);
 			}
 		}
 		//end parse report page. Result in $result
@@ -87,8 +96,8 @@ class freshdesk {
 	}
 	
 	public function saveToDB($tickets,$groups) {
-		$sql="INSERT INTO tickets SET dtime=NOW(),tickets=?i,flow=?i,flowen=?i";
-		$this->db->query($sql,$tickets,$groups['Flow'],$groups['Flow EN']);
+		$sql="INSERT INTO tickets SET dtime=NOW(),?u,?u";
+		$this->db->query($sql,$tickets,$groups);
 		return $this->db->mysqlInfo();
 	}
 
@@ -99,15 +108,6 @@ class freshdesk {
 			'pass' => $this->loginData['mysql_password'],
 			'db'   => $this->loginData['mysql_db'] 
 		]);
-		
-		$sql="CREATE TABLE IF NOT EXISTS tickets (".
-  				"dtime datetime NOT NULL,".
-  				"tickets int(11) NOT NULL,".
-  				"flow int(11) NOT NULL,".
-  				"flowen int(11) NOT NULL,".
-  				"PRIMARY KEY (`dtime`)".
-			  ") ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;";
-		$this->db->query($sql);
 	}
 }
 ?>
