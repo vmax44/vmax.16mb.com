@@ -191,11 +191,11 @@
 	{
 		public $match;
 		private $html; //simple_html_dom
-		private $dal;
+		//private $dal;
 		
 		public function __construct() {
 			$this->html=new simple_html_dom();
-			$this->dal=new nba_DAL();
+			//$this->dal=new nba_DAL();
 		}
 		
 		public function parse($matchId) {
@@ -315,14 +315,15 @@
 			foreach($players as $player) {
 				$arr=[];
 				$arr[]=$id;
-				$arr[]="'{$player->name}'";
+				$arr[]="'".str_replace("'","\'",$player->name)."'";
 				$arr[]="'$team'";
 				$arr[]="'$opponent'";
 				$arr[]="'$start_bench'";
 				$arr[]="'$home_away'";
-				$arr[]="'$date_played'";
+				//$arr[]="'$date_played'";
 				$arr[]="'{$player->position}'";
-				$arr[]="'".(json_encode($player->params))."'";
+				$arr[]="'".(str_replace("'","\'",json_encode($player->params)))."'";
+				
 				$res[]="(".implode(",",$arr).")";
 			}
 			return $res;
@@ -389,15 +390,18 @@
 			$url.=str_replace("-","",$date);
 			//print_r($url);
 			$jsonstr=file_get_contents($url);
+			//echo "Url: $url\n";
+			//echo "json: ".$jsonstr."\n";
 			if($jsonstr===false) {
 				return "error while geting page $url";
 			}
 			$json=json_decode($jsonstr);
-			if($json=null) {
+			if($json==null) {
 				return "error json decode $url";
 			}
 			$competitions=array();
 			$needSetDateParsed=true;
+			
 			foreach($json->events as $event) {
 				$status=$event->status->type->name;
 				if(($status!="STATUS_FINAL") && 
@@ -456,10 +460,9 @@
 			try {
 				$parsed=$this->parser->parse($matchId)->toDBRows();
 				$log.="$matchId: Parsed\n";
-				$allSaved=$this->dal->saveMatchDetails($parsed);
+				$allSaved=$this->dal->saveMatchDetails($matchId,$parsed);
 				if($allSaved) {
 					$log.="$matchId: Saved to DB\n";
-					$this->dal->setCompetitionParsed($matchId);
 				}
 			} catch(Exception $e) {
 				$log.="$matchId: Exception! ".$e->getMessage()."\n";

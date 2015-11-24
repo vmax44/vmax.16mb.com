@@ -59,7 +59,7 @@ foreach($fields as $fieldname) {
 }
 echo "</tr></thead><tbody>";
 
-$data=$db->getAll("SELECT * FROM $tableName LIMIT 100");
+$data=$db->getAll("SELECT * FROM $tableName ORDER BY dtime DESC LIMIT 100");
 foreach($data as $row=>$cols) {
 	echo"<tr>";
 	foreach($cols as $col) {

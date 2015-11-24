@@ -1,6 +1,6 @@
 <?PHP
 require_once("safemysql.class.php");
-class NBA_DAL {
+class astro_DAL {
 	
 	private $db=null;
 	
@@ -13,6 +13,27 @@ class NBA_DAL {
 		);
 		$this->db=new SafeMySQL($options);
 	}
+	
+	public function getLastUrlName() {
+		$sql="SELECT `url_name` FROM `astro` ORDER BY id DESC LIMIT 1";
+		return $this->db->getOne($sql);
+	}
+	
+	public function saveUrls($data) {
+		$val=[];
+		foreach($data as $d) {
+			$val[]=$this->db->parse("(?s,?s,FALSE)",$d[0],$d[1]);
+		}
+		//print_r($val);
+		$values=implode(",",$val);
+		//echo "values: $values\n";
+		$sql="INSERT IGNORE INTO astro (url, url_name, parsed) VALUES ?p";
+		$this->db->query($sql,$values);
+		return $this->db->mysqlInfo();
+	}
+	
+	
+	
 	
 	public function addDate($date, $parsed=FALSE) {
 		$data=array('date'=>$date, 'parsed'=>$parsed);
@@ -40,7 +61,7 @@ class NBA_DAL {
 	
 	public function getNotParsedCompetitions($limit=10) {
 		$result=$this->db->getCol("SELECT id FROM competitions where parsed=false AND ".
-									"status='STATUS_FINAL' ORDER BY `date` DESC LIMIT ?i", $limit);
+									"status='STATUS_FINAL' LIMIT ?i", $limit);
 		return $result;
 	}
 	
@@ -61,18 +82,11 @@ class NBA_DAL {
 		return "setDateParsed: ".$this->db->mysqlInfo();
 	}
 	
-	
-	
-	public function saveMatchDetails($matchId, $details) {
-		// Save details to players table
-		$sql="INSERT INTO players (competition_id,player,`team`,opponent,start_bench,".
-			"home_away,position,params) values $details";
+	public function saveMatchDetails($details) {
+		$sql="INSERT INTO players (competition_id,player,team,opponent,start_bench,home_away,position,params) ".
+			"values $details";
 		$this->db->query($sql);
-		// Update competitions table - set parsed
-		$sql="UPDATE competitions SET parsed=TRUE WHERE id='$matchId'";
-		$this->db->query($sql);
-		
-		return true; 
+		return false; 
 	}
 	
 }
