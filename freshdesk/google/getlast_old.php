@@ -1,5 +1,4 @@
 <?php
-	$timestart=microtime();
 	header('Content-type: application/json; charset=utf-8');
 	
 	require_once("lib/safemysql.class.php");
@@ -17,20 +16,10 @@
 		
 		$tableName="tickets";
 		
-		$startCurrentWeek=date("Y-m-d H:i:s", strtotime("last Monday"));
-		
-		$sql="SELECT *,DAYNAME(dtime) as day FROM $tableName WHERE dtime IN ".
-			"(SELECT MAX(dtime) FROM $tableName ".
-			"WHERE dtime>='$startCurrentWeek' ".
-			"GROUP BY DAYNAME(dtime))";
-		$values=$db->getInd("day",$sql);
-	
-		$response["data"]=$values;
-		
 		$sql="SELECT * FROM $tableName ORDER BY dtime DESC LIMIT 1";
 		$values=$db->getRow($sql);
-		
-		$response["latest"]=$values;
+	
+		$response["data"]=$values;
 
 	} catch(Exception $e) {
 		$errormsg=$e->getMessage();
@@ -42,7 +31,6 @@
 		$response["status"]="error";
 		$response["message"]=$errormsg;
 	}
-	$response["elapsed"]=(microtime()-$timestart);
 	
 	echo json_encode($response);
 	
