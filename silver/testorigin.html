@@ -1,0 +1,26 @@
+<html>
+	<head>
+	<script src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+	</head>
+	<body>
+		<div id="result"></div>
+		<script type="text/javascript">
+		
+$(document).ready(function() {
+	var a=$.ajax({
+		url: "http://api2.goldprice.org/Service.svc/GetRaw/3"
+	});
+	a.done(function(d) {
+		
+		$("#result").html(d);
+	});
+	a.fail(function(e,g,f) {
+		alert("Error while load page");
+	});
+	
+});		
+		
+		</script>
+	</body>
+</html>
+		

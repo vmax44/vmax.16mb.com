@@ -1,0 +1,53 @@
+<html>
+	<head>
+		<script src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+	</head>
+	<body>
+		<button id="start">Go</button>
+	</body>
+	<h1>Received parameters:</h1>
+	<h3>p1: <div id="paramP1"></div></h3>
+	<h3>p2: <div id="paramP2"></div></h3>
+	<h1>Answer from script.php</h1>
+	<div id="fromscript"></div>
+	<script>
+$(document).ready(function() {
+	$("#start").on("click",function() {
+		var p1=getParam("p1");
+		var p2=getParam("p2");
+		$("#paramP1").html(p1);
+		$("#paramP2").html(p2);
+		
+		var req=$.ajax({
+			url: "http://vmax.16mb.com/jscript/script.php",
+			type: "POST",
+			cache: false,
+			data: {
+				p1: p1,
+				p2: p2
+			}
+		});
+		req.done(function(d) {
+			$("#fromscript").html(d);
+		});
+		req.fail(function(e,g,f) {
+			alert("Post error");
+		});
+		
+	});
+	
+
+
+	function getParam(val) {
+		var result = "Not found",
+			tmp = [];
+		var items = location.search.substr(1).split("&");
+		for (var index = 0; index < items.length; index++) {
+			tmp = items[index].split("=");
+			if (tmp[0] === val) result = decodeURIComponent(tmp[1]);
+		}
+		return result;
+	};
+});
+	</script>
+</html>

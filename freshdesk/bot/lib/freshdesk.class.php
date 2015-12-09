@@ -52,7 +52,7 @@ class freshdesk {
 	private function getTicketsCountForOneView($viewnumber) {
 		$tickets_count=0;
 		//Getting tickets count
-		$content=$this->http->request($this->baseUrl."/helpdesk/tickets/view/".$viewnumber);
+		$content=$this->http->request($this->baseUrl."/helpdesk/tickets/view/".$viewnumber,"HEAD");
 		$content=$this->http->request($this->baseUrl."/helpdesk/tickets/full_paginate?tickets_in_current_page=1");
 		if(preg_match("/html\(([0-9]+)\)/",$content,$matches)) {
 			$tickets_count=$matches[1];
@@ -69,11 +69,21 @@ class freshdesk {
 			throw new Exception("Not autorized!");
 		}
 		$result=array();
-		//date_default_timezone_set('UTC');
-		//format current date
-		$date=date("j+M+Y",strtotime("today"));
+		
+		// Set begin range date and end range date
+		// date format: begin of month - "first day of",
+		//				monday of current week - "monday this week",
+		//				7 days ago - "7 days ago" or "-7 day"
+		// 				
+		$dateBegin = "7 days ago"; 
+		$dateEnd = "today";
+		
 		//assemble url for report page
-		$url=$this->baseUrl."/reports/2?date_range=".$date;
+		$dateRange=date("j+M+Y",strtotime($dateEnd));
+		if(strtotime($dateBegin)<strtotime($dateEnd)) {
+			$dateRange=date("j+M+Y",strtotime($dateBegin))."+-+".$dateRange;
+		}
+		$url=$this->baseUrl."/reports/2?date_range=".$dateRange;
 		//download report page
 		$content=$this->http->request($url);
 		$this->html->load($content);

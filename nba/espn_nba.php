@@ -187,20 +187,48 @@
 	}
 	
 	include_once("simple_html_dom.php");
+	include_once("request.php");
 	class nba_match_parser
 	{
 		public $match;
 		private $html; //simple_html_dom
+		private $http;
 		//private $dal;
 		
 		public function __construct() {
 			$this->html=new simple_html_dom();
+			$this->http=new HTTP_Request();
 			//$this->dal=new nba_DAL();
 		}
 		
+		public function goRandomUrls() {
+			$url="http://espn.go.com/nba";
+			$this->html->load($this->http->request($url));
+			$as=$this->html->find("a");
+			if(count($as)>0) {
+				for($i=0;$i<rand(2,5);$i++) {
+					$num=rand(0,count($as)-1);
+					$base="http://espn.go.com";
+					$url=$as[$num]->href;
+					if(strtolower(substr($url,0,4))!='http') {
+						$url=$base.$url;
+					}
+					$this->http->request($url,"HEAD");
+					echo "   ".$url."\n";
+				}
+			}
+		}
+		
 		public function parse($matchId) {
-			$url="http://espn.go.com/nba/boxscore?gameId=".$matchId;
-			$this->html->load_file($url);
+			$url="http://espn.go.com/nba";
+			$this->http->request($url,"HEAD");
+
+			$url="http://espn.go.com/nba/boxscore";
+			$content=$this->http->request($url,'GET',
+										['gameId'=>$matchId]);
+			//echo $content;
+			//die();
+			$this->html->load($content);
 			$this->match=new nba_match();
 			$this->match->id=$matchId;
 			$this->parse_match_date();
@@ -210,14 +238,21 @@
 		}
 		
 		private function parse_match_date() {
-			$datestr=$this->html->find(".subhead span a",0)->href;
+			$dateElem=$this->html->find(".subhead span a",0);
+			if(!isset($dateElem)) {
+				throw new Exception("Format error while scraping match date");
+			}
+			$datestr=$dateElem->href;
 			$this->match->set_date_from_string($datestr);
 		}
 		
 		private function parse_team_names() {
-			$teams=$this->html->find('table.linescore td.team a');
-			$this->match->team_away=$teams[0]->plaintext;
-			$this->match->team_home=$teams[1]->plaintext;
+			$teams=$this->html->find('table.linescore td.team');
+			$this->match->team_away=trim($teams[1]->plaintext);
+			$this->match->team_home=trim($teams[2]->plaintext);
+			//echo $this->match->team_away."\n";
+			//echo $this->match->team_home."\n";
+			//die();
 		}
 		
 		private function parse_players() {
@@ -225,10 +260,18 @@
 			// $theads[0] and $theads[1] - table parts for 1 team;
 			// $theads[3] and $theads[4] - table parts for 2 team;
 			//parse first team
+			if(count($theads)<4) {
+				throw new Exception("Box Score not available.");
+			}
 			$this->match->team_away_starters=$this->parse_table_part($theads[0]);
 			$this->match->team_away_bench=$this->parse_table_part($theads[1]);
-			$this->match->team_home_starters=$this->parse_table_part($theads[3]);
-			$this->match->team_home_bench=$this->parse_table_part($theads[4]);
+			if(count($theads)>4) {
+				$this->match->team_home_starters=$this->parse_table_part($theads[3]);
+				$this->match->team_home_bench=$this->parse_table_part($theads[4]);
+			} else {
+				$this->match->team_home_starters=$this->parse_table_part($theads[2]);
+				$this->match->team_home_bench=$this->parse_table_part($theads[3]);
+			}
 		}
 		
 		private function parse_table_part($thead) {
@@ -241,11 +284,10 @@
 				$player=new nba_player();
 				$tds=$row->find("td");
 				$name_pos=$tds[0];
-				$player->name=$name_pos->find("a",0)->plaintext;
-				$pos_txt=$name_pos->plaintext;
-				$space_pos=strrpos($pos_txt," ");
-				$pos=substr($pos_txt,$space_pos+1,strlen($pos_txt)-$space_pos);
-				$player->position=$pos;
+				$name_pos_txt=$name_pos->plaintext;
+				$name_pos=explode(",",$name_pos_txt);
+				$player->name=trim($name_pos[0]);
+				$player->position=trim($name_pos[1]);
 				for($i=1;$i<count($headers);$i++) {
 					$key=$headers[$i]->plaintext;
 					$value=isset($tds[$i]) ? $tds[$i]->plaintext : "";
@@ -449,6 +491,7 @@
 		public function __construct() {
 			$this->dal=new nba_DAL();
 			$this->parser=new nba_match_parser();
+			//$this->parser->goRandomUrls();
 		}
 		
 		public function getNotParsedCompetitions($limit=10) {
@@ -456,6 +499,7 @@
 		}
 		
 		public function parse($matchId) {
+			echo "$matchId\n";
 			$log="$matchId: Start parsing\n";
 			try {
 				$parsed=$this->parser->parse($matchId)->toDBRows();
@@ -466,6 +510,7 @@
 				}
 			} catch(Exception $e) {
 				$log.="$matchId: Exception! ".$e->getMessage()."\n";
+				$this->dal->setErrorWhileParseMatchDetails($matchId);
 			}
 			return $log;
 		}
